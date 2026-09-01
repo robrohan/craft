@@ -9,8 +9,8 @@
 #include <sys/types.h>
 
 #ifdef _WIN32
+  #include <windows.h>
   #include <direct.h>
-  #include <io.h>
   #define getcwd _getcwd
   #ifndef popen
     #define popen _popen
@@ -25,29 +25,19 @@
 /* ------------------------------------------------------------ timestamps */
 int file_mtime(const char *path, long long *out)
 {
-#ifdef _WIN32
-    WIN32_FILE_ATTRIBUTE_DATA fad;
-    if (!GetFileAttributesExA(path, GetFileExInfoStandard, &fad)) return 0;
-    ULARGE_INTEGER u;
-    u.LowPart  = fad.ftLastWriteTime.dwLowDateTime;
-    u.HighPart = fad.ftLastWriteTime.dwHighDateTime;
-    if (out) *out = (long long)(u.QuadPart) * 100;   /* 100ns units -> ns */
-    return 1;
-#else
     struct stat st;
     if (stat(path, &st) != 0) return 0;
-    if (out) {
-  #if defined(__APPLE__)
-        *out = (long long)st.st_mtimespec.tv_sec * 1000000000LL
-             + st.st_mtimespec.tv_nsec;
-  #elif defined(__linux__) || defined(_POSIX_C_SOURCE)
-        *out = (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
-  #else
-        *out = (long long)st.st_mtime * 1000000000LL;
-  #endif
-    }
-    return 1;
+    if (!out) return 1;
+#if defined(__APPLE__)
+    *out = (long long)st.st_mtimespec.tv_sec * 1000000000LL
+         + st.st_mtimespec.tv_nsec;
+#elif defined(__linux__)
+    *out = (long long)st.st_mtim.tv_sec * 1000000000LL + st.st_mtim.tv_nsec;
+#else
+    /* Windows / other: 1-second resolution (see README, "Deviations") */
+    *out = (long long)st.st_mtime * 1000000000LL;
 #endif
+    return 1;
 }
 
 void touch_file(const char *path)
@@ -282,24 +272,25 @@ static void glob_dir(const char *dirprefix, const char *dir, const char *pat,
                      struct strvec *out)
 {
 #ifdef _WIN32
-    struct _finddata_t fd;
+    WIN32_FIND_DATAA fd;
     struct sbuf search;
     sb_init(&search);
     sb_add(&search, dir && *dir ? dir : ".");
     sb_add(&search, "\\*");
-    intptr_t h = _findfirst(search.data, &fd);
+    HANDLE h = FindFirstFileA(search.data, &fd);
     sb_free(&search);
-    if (h == -1) return;
+    if (h == INVALID_HANDLE_VALUE) return;
     do {
-        if (strcmp(fd.name, ".") == 0 || strcmp(fd.name, "..") == 0) continue;
-        if (!wildmatch(pat, fd.name)) continue;
+        const char *nm = fd.cFileName;
+        if (strcmp(nm, ".") == 0 || strcmp(nm, "..") == 0) continue;
+        if (!wildmatch(pat, nm)) continue;
         struct sbuf b;
         sb_init(&b);
-        if (dirprefix && *dirprefix) { sb_add(&b, dirprefix); }
-        sb_add(&b, fd.name);
+        if (dirprefix && *dirprefix) sb_add(&b, dirprefix);
+        sb_add(&b, nm);
         sv_push(out, sb_detach(&b));
-    } while (_findnext(h, &fd) == 0);
-    _findclose(h);
+    } while (FindNextFileA(h, &fd));
+    FindClose(h);
 #else
     DIR *d = opendir(dir && *dir ? dir : ".");
     if (!d) return;

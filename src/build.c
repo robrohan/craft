@@ -5,10 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-  #include <io.h>
-  #define unlink _unlink
-#else
+#ifndef _WIN32
   #include <unistd.h>
 #endif
 
@@ -301,7 +298,7 @@ static int run_recipe(struct file *f)
                 if (file_mtime(f->name, NULL)) {
                     fprintf(stderr, "%s: *** Deleting file '%s'\n",
                             program_name, f->name);
-                    unlink(f->name);
+                    remove(f->name);
                 }
             }
             rc = r;

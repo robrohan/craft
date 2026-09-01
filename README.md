@@ -1,10 +1,11 @@
-# craft
+# craft β
 
-A small `make` clone in portable C99 designed to work on both Windows and Unix.
-It builds with [tcc](https://bellard.org/tcc/) on Windows (without using
-Cygwin/MSYS/WSL), and with `cc`/`clang` on macOS and Linux. The goal is to be
-as close to GNU make as is practical while accepting that recipe lines run
-under `cmd.exe` (or PowerShell) on Windows instead of `/bin/sh`.
+Craft is a small `make` clone written in portable C99 designed to work on
+both Windows and Unix. It builds with [tcc](https://bellard.org/tcc/) on
+Windows (without using Cygwin/MSYS/WSL), and with `cc`/`clang` on macOS
+and Linux. The goal is to be as close to GNU make as is practical while
+accepting that recipe lines run under `cmd.exe` (or PowerShell) on Windows
+instead of `/bin/sh`.
 
 ## Quick Start
 
@@ -91,8 +92,8 @@ aliases, `--`, and `VAR=value` overrides. `$(MAKE)` recursion propagates
 
 ## Deviations from GNU make
 
-- Timestamps use the highest resolution the OS offers (nanoseconds on  macOS/Linux,
-100 ns on Windows); a prerequisite is newer only if strictly greater.
+- Timestamp comparison is nanosecond-resolution on macOS/Linux but 1-second on
+  Windows (`stat` only); a prerequisite counts as newer only if strictly greater.
 * Recipe quoting for a non-default `SHELL` is best-effort (single-quote wrap for
 `sh`, `/c " ... "` for cmd); exotic quoting may differ.
 * Diagnostics are prefixed `craft:` and error lines read

@@ -66,10 +66,19 @@ jobs:
       - name: Fetch tcc
         shell: bash
         run: |
-          curl -fL --retry 3 --retry-all-errors \
-            -o tcc.zip \
+          set -e
+          urls="
+            http://download-mirror.savannah.gnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip
             https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip
+            https://download.savannah.nongnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip
+          "
+          for u in $urls; do
+            echo "trying $u"
+            if curl -fL --retry 3 --retry-all-errors -o tcc.zip "$u"; then ok=1; break; fi
+          done
+          [ -n "${ok:-}" ] || { echo "could not download tcc"; exit 1; }
           7z x -y tcc.zip
+          ./tcc/tcc.exe -v
 
       - name: Build (build.bat)
         shell: cmd
