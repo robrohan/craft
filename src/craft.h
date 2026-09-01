@@ -2,6 +2,24 @@
 #ifndef CRAFT_H
 #define CRAFT_H
 
+/* Ask the C library for POSIX.1-2008 declarations (popen/pclose, putenv,
+   struct stat's st_mtim) even under a strict -std=c99.  Must precede every
+   system header, so craft.h is always included first in each .c file. */
+#ifndef _WIN32
+#  if defined(__APPLE__)
+#    ifndef _DARWIN_C_SOURCE
+#      define _DARWIN_C_SOURCE 1
+#    endif
+#  else
+#    ifndef _XOPEN_SOURCE
+#      define _XOPEN_SOURCE 700
+#    endif
+#    ifndef _DEFAULT_SOURCE
+#      define _DEFAULT_SOURCE 1
+#    endif
+#  endif
+#endif
+
 #include <stddef.h>
 #include <time.h>
 

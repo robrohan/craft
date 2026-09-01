@@ -13,17 +13,17 @@ set -e
 CC=${CC:-clang}
 OUT=craft
 
-# The code is C99; -std=gnu99 only widens POSIX header visibility (popen,
-# putenv, st_mtim) on Linux.  tcc doesn't need or want the -std/-W flags.
+# The code is C99 (craft.h sets the POSIX feature macros itself).  tcc doesn't
+# want the -std/-W flags.
 case "$(basename "$CC")" in
     tcc|tcc.exe) : "${CFLAGS:=-Wall}" ;;
-    *)           : "${CFLAGS:=-std=gnu99 -O2 -Wall -Wextra -Wno-unused-parameter}" ;;
+    *)           : "${CFLAGS:=-std=c99 -O2 -Wall -Wextra -Wno-unused-parameter}" ;;
 esac
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --debug)
-            CFLAGS="-std=gnu99 -g -O0 -Wall -Wextra -Wno-unused-parameter -fsanitize=address,undefined"
+            CFLAGS="-std=c99 -g -O0 -Wall -Wextra -Wno-unused-parameter -fsanitize=address,undefined"
             OUT=craft-debug ;;
         -o) shift; OUT="$1" ;;
         *)  echo "build.sh: ignoring unknown argument '$1'" >&2 ;;
