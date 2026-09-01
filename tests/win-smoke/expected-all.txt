@@ -1,0 +1,3 @@
+compile main.c
+compile util.c
+link main.obj util.obj into app

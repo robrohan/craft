@@ -86,14 +86,36 @@ jobs:
           set PATH=%CD%\tcc;%PATH%
           call build.bat
 
-      - name: Smoke test
-        shell: bash
-        run: ./craft.exe --version
+      - name: Version
+        shell: cmd
+        run: craft.exe --version
 
-      # The test recipes are POSIX-shell scripts, so the suite drives craft with
-      # SHELL=sh (Git Bash) here. This exercises craft's SHELL dispatch but is
-      # marked non-blocking: the build.bat step above is the real Windows gate.
-      - name: Test suite (SHELL=sh)
-        continue-on-error: true
+      # The tests/ golden suite uses POSIX-shell recipes, which is not how craft
+      # is used on Windows.  Instead we drive a cmd.exe-native makefile - this is
+      # what a real Windows user's recipes look like (echo, plain commands).
+      - name: Smoke test (cmd.exe recipes)
         shell: bash
-        run: CRAFT="$PWD/craft.exe" EXTRAARGS="SHELL=sh" sh tests/run.sh
+        run: |
+          set -e
+          cd tests/win-smoke
+          craft=../../craft.exe
+
+          echo "# default goal builds prereqs in order"
+          "$craft" > got.txt 2>&1 || { cat got.txt; exit 1; }
+          diff <(tr -d '\r' < expected-all.txt) <(tr -d '\r' < got.txt)
+
+          echo "# command-line override + automatic variable"
+          out=$("$craft" show NAME=hi | tr -d '\r')
+          [ "$out" = "name=hi target=show" ] || { echo "got: [$out]"; exit 1; }
+
+          echo "# a failing recipe stops the build with exit 2"
+          set +e
+          "$craft" boom > boom.txt 2>&1
+          rc=$?
+          set -e
+          cat boom.txt
+          [ "$rc" = 2 ] || { echo "expected rc 2, got $rc"; exit 1; }
+          grep -q "starting" boom.txt
+          grep -q "Error 1" boom.txt
+
+          echo "ALL SMOKE CHECKS PASSED"

@@ -98,19 +98,26 @@ static int spawn_shell(const char *cmdline)
     const char *shell = current_shell();
     const char *kind = shell_kind(shell);
 
+    /* argv array (not the variadic execl/_spawnl forms - tcc's win64 varargs
+       codegen mangles those). */
+    const char *argv[6];
+    int n = 0;
+    argv[n++] = shell;
+    if (strcmp(kind, "pwsh") == 0) {
+        argv[n++] = "-NoProfile";
+        argv[n++] = "-Command";
+    } else {
+        argv[n++] = strcmp(kind, "cmd") == 0 ? "/c" : "-c";
+    }
+    argv[n++] = cmdline;
+    argv[n] = NULL;
+
 #ifdef _WIN32
     if (shell_is_default(shell)) {
-        int rc = system(cmdline);
+        int rc = system(cmdline);          /* cmd.exe: let the CRT drive it */
         return rc < 0 ? 127 : rc;
     }
-    intptr_t rc;
-    if (strcmp(kind, "pwsh") == 0)
-        rc = _spawnlp(_P_WAIT, shell, shell, "-NoProfile", "-Command",
-                      cmdline, (char *)NULL);
-    else if (strcmp(kind, "cmd") == 0)
-        rc = _spawnlp(_P_WAIT, shell, shell, "/c", cmdline, (char *)NULL);
-    else
-        rc = _spawnlp(_P_WAIT, shell, shell, "-c", cmdline, (char *)NULL);
+    intptr_t rc = _spawnvp(_P_WAIT, shell, argv);
     if (rc == -1) {
         fprintf(stderr, "%s: %s: %s\n", program_name, shell, strerror(errno));
         return 127;
@@ -120,11 +127,7 @@ static int spawn_shell(const char *cmdline)
     pid_t pid = fork();
     if (pid < 0) { perror("fork"); return 127; }
     if (pid == 0) {
-        if (strcmp(kind, "pwsh") == 0)
-            execlp(shell, shell, "-NoProfile", "-Command", cmdline, (char *)NULL);
-        else
-            execlp(shell, shell, strcmp(kind, "cmd") == 0 ? "/c" : "-c",
-                   cmdline, (char *)NULL);
+        execvp(shell, (char *const *)argv);
         fprintf(stderr, "%s: %s: %s\n", program_name, shell, strerror(errno));
         _exit(127);
     }
