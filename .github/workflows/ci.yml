@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # clang / cc build on Linux and macOS, plus the ASan/UBSan build and self-host
+  posix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (build.sh)
+        run: sh build.sh
+
+      - name: Version
+        run: ./craft --version
+
+      - name: Test suite (compared against GNU make)
+        run: sh tests/run.sh --compare
+
+      - name: ASan / UBSan build + tests
+        run: |
+          sh build.sh --debug
+          CRAFT="$PWD/craft-debug" sh tests/run.sh
+
+      - name: Self-host (craft builds craft)
+        run: |
+          ./craft -f Craftfile BIN=craft-selfhost
+          CRAFT="$PWD/craft-selfhost" sh tests/run.sh
+
+  # tcc build on Linux (mirrors the Windows toolchain on a testable platform)
+  linux-tcc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tcc
+        run: sudo apt-get update && sudo apt-get install -y tcc
+
+      - name: Build (CC=tcc)
+        run: CC=tcc sh build.sh
+
+      - name: Version
+        run: ./craft --version
+
+      - name: Test suite
+        run: sh tests/run.sh
+
+  # tcc build on Windows via build.bat - no Cygwin/MSYS in the build itself
+  windows-tcc:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch tcc
+        shell: bash
+        run: |
+          curl -fL --retry 3 --retry-all-errors \
+            -o tcc.zip \
+            https://download.savannah.gnu.org/releases/tinycc/tcc-0.9.27-win64-bin.zip
+          7z x -y tcc.zip
+
+      - name: Build (build.bat)
+        shell: cmd
+        run: |
+          set PATH=%CD%\tcc;%PATH%
+          call build.bat
+
+      - name: Smoke test
+        shell: bash
+        run: ./craft.exe --version
+
+      # The test recipes are POSIX-shell scripts, so the suite drives craft with
+      # SHELL=sh (Git Bash) here. This exercises craft's SHELL dispatch but is
+      # marked non-blocking: the build.bat step above is the real Windows gate.
+      - name: Test suite (SHELL=sh)
+        continue-on-error: true
+        shell: bash
+        run: CRAFT="$PWD/craft.exe" EXTRAARGS="SHELL=sh" sh tests/run.sh

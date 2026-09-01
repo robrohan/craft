@@ -1,0 +1,8 @@
+/craft
+/craft.exe
+/craft-debug
+/craft-selfhost
+/craft2
+*.o
+*.obj
+*.dSYM/

@@ -1,0 +1,3 @@
+cc a.c => a.o
+cc b.c => b.o
+link a.o b.o => prog

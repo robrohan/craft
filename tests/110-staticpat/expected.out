@@ -1,0 +1,3 @@
+cc a.c -> a.o (stem a)
+cc b.c -> b.o (stem b)
+cc c.c -> c.o (stem c)

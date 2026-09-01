@@ -1,0 +1,13 @@
+sub=foo.o bar.o baz.o
+pat=foo.o bar.o baz.o
+filt=foo.c bar.c baz.c
+fout=foo.c baz.c
+sort=apple banana cherry
+words=3 word2=bar.c
+dir=a/b/ ./
+notdir=c.c x.c
+suffix=.gz .c
+base=a/b/c.tar d
+addpre=inc/a inc/b inc/c
+strip=[spaced out]
+if=no yes

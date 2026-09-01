@@ -1,0 +1,37 @@
+# Craftfile - build craft with craft (or GNU make).
+#
+#   craft                 build ./craft   (Craftfile is the default makefile)
+#   craft test            build and run the test suite
+#   craft clean
+#   make -f Craftfile     same, with GNU make
+#
+# On Windows: craft.exe CC=tcc EXE=.exe
+
+CC      ?= cc
+CFLAGS  ?= -std=c99 -O2 -Wall -Wextra -Wno-unused-parameter
+EXE     ?=
+BIN      = craft$(EXE)
+
+SRC = src/main.c src/util.c src/vars.c src/lex.c src/expand.c \
+      src/parse.c src/rules.c src/build.c src/shell.c
+OBJ = $(SRC:.c=.o)
+
+HDR = src/craft.h src/lex.h
+
+.PHONY: all test clean
+
+all: $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJ) -o $@
+
+$(OBJ): $(HDR)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+test: $(BIN)
+	sh tests/run.sh
+
+clean:
+	$(RM) $(BIN) $(OBJ)
