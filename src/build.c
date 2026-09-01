@@ -270,6 +270,14 @@ static int run_recipe(struct file *f)
         if (opt_silent) silent = 1;
 
         char *cmd = expand(body);
+
+        /* prefixes can also arrive via expansion, e.g. the $(Q) quiet-build
+           idiom where Q is '@' or empty - re-scan the expanded text */
+        const char *body2;
+        if (is_silent_line(cmd, &ignore, &force, &body2)) silent = 1;
+        if (body2 != cmd)
+            memmove(cmd, body2, strlen(body2) + 1);
+
         if (is_blank(cmd)) { free(cmd); continue; }
 
         if (makeval && *makeval && strstr(cmd, makeval)) force = 1;
