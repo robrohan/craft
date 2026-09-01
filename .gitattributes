@@ -1,0 +1,6 @@
+# Keep everything LF so the shell scripts and golden test files behave
+# identically on Windows checkouts.
+* text=auto eol=lf
+
+# Batch files are the one thing cmd.exe is happier reading as CRLF.
+*.bat text eol=crlf
