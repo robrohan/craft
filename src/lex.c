@@ -28,8 +28,26 @@ int lex_open(struct lexer *lx, const char *path)
     size_t got = fread(lx->buf, 1, (size_t)sz, f);
     fclose(f);
     lx->buf[got] = '\0';
-    lx->len = got;
+
+    unsigned char *b = (unsigned char *)lx->buf;
+    int utf16 = (got >= 2 && ((b[0] == 0xFF && b[1] == 0xFE) ||
+                              (b[0] == 0xFE && b[1] == 0xFF)));
+    /* BOM-less UTF-16 still has NUL bytes; a real makefile never does */
+    for (size_t i = 0; !utf16 && i < got && i < 512; i++)
+        if (b[i] == 0x00) utf16 = 1;
+    if (utf16)
+        die("%s: file looks like UTF-16 (contains NUL bytes) - re-save it as "
+            "UTF-8 or ASCII (PowerShell's `>` and Set-Content write UTF-16 by "
+            "default; use `Set-Content -Encoding utf8` or your editor's "
+            "encoding setting)", path);
+
+    size_t start = 0;
+    if (got >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF)
+        start = 3;                       /* skip a UTF-8 BOM */
+
+    lx->len = got - start;
     lx->pos = 0;
+    if (start) memmove(lx->buf, lx->buf + start, lx->len + 1);
     lx->fname = xstrdup(path);
     lx->lineno = 1;
     return 1;

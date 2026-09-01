@@ -189,11 +189,19 @@ static void set_default_goal(const char *t)
     g_default_goal = xstrdup(t);
 }
 
-static void do_rule(char *line)
+static void do_rule(char *line, int was_indented)
 {
     int dcolon = 0;
     char *colon = find_rule_colon(line, &dcolon);
-    if (!colon) { craft_error(g_cur_file, g_cur_line, "missing separator"); return; }
+    if (!colon) {
+        if (was_indented)
+            craft_error(g_cur_file, g_cur_line,
+                        "missing separator - this line is indented with spaces; "
+                        "recipe lines must begin with a TAB");
+        else
+            craft_error(g_cur_file, g_cur_line, "missing separator");
+        return;
+    }
 
     *colon = '\0';
     char *left = colon + (dcolon ? 2 : 1);
@@ -541,11 +549,13 @@ void parse_makefile(const char *path, int required)
             continue;
         }
 
-        if (handle_conditional(line)) { free(line); continue; }
+        /* directives may be indented with spaces (never a tab - that is a
+           recipe).  Work on the left-stripped text from here on. */
+        char *t = lstrip(line);
+
+        if (handle_conditional(t)) { free(line); continue; }
 
         if (!cond_active()) { free(line); continue; }
-
-        char *t = lstrip(line);
 
         if (starts_word(t, "define")) { handle_define(&lx, t); free(line); continue; }
 
@@ -592,7 +602,7 @@ void parse_makefile(const char *path, int required)
             }
             sv_free(&names);
         } else {
-            do_rule(t);
+            do_rule(t, t != line);
         }
         free(line);
     }
