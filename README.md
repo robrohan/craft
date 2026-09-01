@@ -16,6 +16,38 @@ instead of `/bin/sh`.
 craft [options] [target ...] [VAR=VALUE ...]
 ```
 
+```bash
+craft CC=tcc EXE=.exe
+```
+
+## Example
+
+```makefile
+.PHONY all build clean
+
+EXAMPLE:=not windows
+
+ifeq ($(OS),Windows_NT)
+EXAMPLE=windows
+endif
+
+help:
+  @echo "Hi $(EXAMPLE)"
+  @echo "craft build"
+  @echo "craft clean"
+
+build:
+  $(CC) main.c -o test$(EXE)
+
+clean:
+ifneq ($(OS),Windows_NT)
+  rm test.exe
+endif
+ifeq ($(OS),Windows_NT)
+  del test.exe
+endif
+```
+
 ## Building
 
 Because you need to compile craft before you can use craft, there are two bootstrap
