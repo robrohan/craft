@@ -94,8 +94,10 @@ aliases, `--`, and `VAR=value` overrides. `$(MAKE)` recursion propagates
 
 - Timestamp comparison is nanosecond-resolution on macOS/Linux but 1-second on
   Windows (`stat` only); a prerequisite counts as newer only if strictly greater.
-* Recipe quoting for a non-default `SHELL` is best-effort (single-quote wrap for
-`sh`, `/c " ... "` for cmd); exotic quoting may differ.
+* Recipe lines run as `<shell> -c "<line>"` via a direct spawn (`execlp` /
+  `_spawnlp`), one process per line. On Windows the shell is launched directly,
+  not through `cmd.exe`, so a non-default `SHELL` (e.g. `sh`) gets the line
+  intact; MSVCRT argument quoting still means embedded `"` can differ.
 * Diagnostics are prefixed `craft:` and error lines read
 `craft: *** [file:line: target] Error N` (attempt to match modern GNU make 4.x,
 not macOS shipped version 3.8)

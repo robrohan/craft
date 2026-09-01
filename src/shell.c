@@ -8,9 +8,12 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <errno.h>
+
 #ifdef _WIN32
   #include <windows.h>
   #include <direct.h>
+  #include <process.h>
   #define getcwd _getcwd
   #ifndef popen
     #define popen _popen
@@ -56,15 +59,13 @@ const char *default_shell(void)
 #endif
 }
 
+#ifdef _WIN32
 static int shell_is_default(const char *sh)
 {
     const char *b = base_name(sh);
-#ifdef _WIN32
     return _stricmp(b, "cmd.exe") == 0 || _stricmp(b, "cmd") == 0;
-#else
-    return strcmp(sh, "/bin/sh") == 0 || strcmp(b, "sh") == 0;
-#endif
 }
+#endif
 
 static const char *shell_kind(const char *sh)
 {
@@ -87,43 +88,51 @@ static const char *current_shell(void)
     return default_shell();
 }
 
-/* Build "<shell> <flag> <quoted cmd>" for a non-default shell. */
-static char *wrap_command(const char *shell, const char *cmd)
+/* Run CMDLINE through the configured shell and return its exit code.
+   The shell is invoked directly (execlp / _spawnlp) with CMDLINE as one
+   argument, so no second layer of shell quoting is involved - important on
+   Windows, where system() would otherwise route an "sh -c ..." string through
+   cmd.exe and mangle quotes and redirections. */
+static int spawn_shell(const char *cmdline)
 {
+    const char *shell = current_shell();
     const char *kind = shell_kind(shell);
-    struct sbuf b;
-    sb_init(&b);
-    sb_add(&b, shell);
-    if (strcmp(kind, "cmd") == 0) {
-        sb_add(&b, " /c \"");
-        sb_add(&b, cmd);
-        sb_addch(&b, '"');
-    } else if (strcmp(kind, "pwsh") == 0) {
-        sb_add(&b, " -NoProfile -Command \"");
-        for (const char *p = cmd; *p; p++) {
-            if (*p == '"') sb_add(&b, "\\\"");
-            else sb_addch(&b, *p);
-        }
-        sb_addch(&b, '"');
-    } else {                       /* sh-like: single-quote */
-        sb_add(&b, " -c '");
-        for (const char *p = cmd; *p; p++) {
-            if (*p == '\'') sb_add(&b, "'\\''");
-            else sb_addch(&b, *p);
-        }
-        sb_addch(&b, '\'');
-    }
-    return sb_detach(&b);
-}
 
-static int status_to_code(int rc)
-{
 #ifdef _WIN32
-    return rc;
+    if (shell_is_default(shell)) {
+        int rc = system(cmdline);
+        return rc < 0 ? 127 : rc;
+    }
+    intptr_t rc;
+    if (strcmp(kind, "pwsh") == 0)
+        rc = _spawnlp(_P_WAIT, shell, shell, "-NoProfile", "-Command",
+                      cmdline, (char *)NULL);
+    else if (strcmp(kind, "cmd") == 0)
+        rc = _spawnlp(_P_WAIT, shell, shell, "/c", cmdline, (char *)NULL);
+    else
+        rc = _spawnlp(_P_WAIT, shell, shell, "-c", cmdline, (char *)NULL);
+    if (rc == -1) {
+        fprintf(stderr, "%s: %s: %s\n", program_name, shell, strerror(errno));
+        return 127;
+    }
+    return (int)rc;
 #else
-    if (rc == -1) return 127;
-    if (WIFEXITED(rc)) return WEXITSTATUS(rc);
-    if (WIFSIGNALED(rc)) return 128 + WTERMSIG(rc);
+    pid_t pid = fork();
+    if (pid < 0) { perror("fork"); return 127; }
+    if (pid == 0) {
+        if (strcmp(kind, "pwsh") == 0)
+            execlp(shell, shell, "-NoProfile", "-Command", cmdline, (char *)NULL);
+        else
+            execlp(shell, shell, strcmp(kind, "cmd") == 0 ? "/c" : "-c",
+                   cmdline, (char *)NULL);
+        fprintf(stderr, "%s: %s: %s\n", program_name, shell, strerror(errno));
+        _exit(127);
+    }
+    int st = 0;
+    while (waitpid(pid, &st, 0) < 0 && errno == EINTR)
+        ;
+    if (WIFEXITED(st)) return WEXITSTATUS(st);
+    if (WIFSIGNALED(st)) return 128 + WTERMSIG(st);
     return 1;
 #endif
 }
@@ -137,21 +146,13 @@ int run_recipe_line(const char *cmdline, int ignore_err, int silent_echo)
     if (opt_dry_run)
         return 0;
 
-    const char *shell = current_shell();
-    int rc;
-    if (shell_is_default(shell)) {
-        rc = system(cmdline);
-    } else {
-        char *wrapped = wrap_command(shell, cmdline);
-        rc = system(wrapped);
-        free(wrapped);
+    int code = spawn_shell(cmdline);
+    if (code != 0 && ignore_err) {
+        fprintf(stderr, "%s: [%s] Error %d (ignored)\n",
+                program_name, cmdline, code);
+        return 0;
     }
-    int code = status_to_code(rc);
-    if (code != 0 && !ignore_err)
-        return code;
-    if (code != 0 && ignore_err)
-        fprintf(stderr, "%s: [%s] Error %d (ignored)\n", program_name, cmdline, code);
-    return 0;
+    return code;
 }
 
 char *run_shell_capture(const char *cmdline)
