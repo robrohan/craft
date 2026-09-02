@@ -1,4 +1,4 @@
-# craft β
+# craft β (mostly AI created tool)
 
 Craft is a small `make` clone written in portable C99 designed to work on
 both Windows and Unix. It builds with [tcc](https://bellard.org/tcc/) on
