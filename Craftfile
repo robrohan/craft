@@ -1,3 +1,5 @@
+.PHONY: all test clean
+
 # Craftfile - build craft with craft (or GNU make).
 #
 #   craft                 build ./craft   (Craftfile is the default makefile)
@@ -17,8 +19,6 @@ SRC = src/main.c src/util.c src/vars.c src/lex.c src/expand.c \
 OBJ = $(SRC:.c=.o)
 
 HDR = src/craft.h src/lex.h
-
-.PHONY: all test clean
 
 all: $(BIN)
 
