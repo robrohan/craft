@@ -57,11 +57,11 @@ build files `build.bat` and `build.sh` for Windows and *nix respectfully.
 
 | Platform      | Command                                                                     |
 |---------------|-----------------------------------------------------------------------------|
-| Windows (tcc) | `zero.bat` -> `craft.exe`                                                   |
+| Windows (tcc) | `build.bat` -> `craft.exe`                                                  |
 | macOS / Linux | `sh build.sh` -> `craft` (set `CC=` to override; `--debug` adds ASan/UBSan) |
 | Self-host     | `craft -f craft.mk` (also `make -f craft.mk`)                               |
 
-All code is writte in plain C99 located in `src/` and it doesn't have any 3rd party
+All code is written in C99 in `src/`. Craft doesn't have any 3rd party
 dependencies.  Because I am using tcc on windows, the source could should stays compatible
 with tcc and clang at the minimum.
 
@@ -84,7 +84,7 @@ for Unix and one for Windows.
 
 `.ONESHELL` attempts to run the whole recipe in a single shell invocation.
 
-## What Works (mostly)
+## What Mostly Works
 
 **Variables** — `=`, `:=`, `::=`, `?=`, `+=`, `!=`; recursive vs simple flavor;
 `override`, `export`, `unexport`, `undefine`; `define ... endef`. Precedence:

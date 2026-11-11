@@ -37,3 +37,7 @@ SRC="src/main.c src/util.c src/vars.c src/lex.c src/expand.c \
 set -x
 # shellcheck disable=SC2086
 $CC $CFLAGS $SRC -o "$OUT"
+
+echo
+echo Tip: add $(pwd) to your PATH so you can run "craft" as "make" from anywhere.
+echo      Or add an alias:  alias make="$(pwd)/craft -f Makefile"
