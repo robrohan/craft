@@ -1,4 +1,4 @@
-# craft β (mostly AI created tool)
+# craft β - a makefile like tool
 
 Craft is a small `make` clone written in portable C99 designed to work on
 both Windows and Unix. It builds with [tcc](https://bellard.org/tcc/) on
@@ -6,6 +6,8 @@ Windows (without using Cygwin/MSYS/WSL), and with `cc`/`clang` on macOS
 and Linux. The goal is to be as close to GNU make as is practical while
 accepting that recipe lines run under `cmd.exe` (or PowerShell) on Windows
 instead of `/bin/sh`.
+
+![Standards](https://imgs.xkcd.com/comics/standards_2x.png)
 
 ## Quick Start
 
